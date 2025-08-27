@@ -5,6 +5,7 @@ import re
 import google.generativeai as genai
 from youtube_transcript_api import YouTubeTranscriptApi
 
+# Configure the page
 st.set_page_config(
     page_title="YouTube Transcript Summarizer",
     page_icon="📄",
@@ -12,56 +13,54 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
-load_dotenv()  
-
+# Load environment variables (Google API Key from .env or Streamlit Secrets)
+load_dotenv()
 genai.configure(api_key=os.getenv("GOOGLE_API_KEY"))
 
+# Prompt template for Gemini summarizer
 prompt = """You are a YouTube video summarizer. You will be taking the transcript text
 and summarizing the entire video and providing the important summary points
 within 600 words. Please provide the summary of the text given here: """
 
 def extract_video_id(url):
-    if "youtube.com" in url or "youtu.be" in url:
-        match = re.search(r"(v=|\/)([A-Za-z0-9_-]{11})", url)
-        if match:
-            return match.group(2)
-    return None
+    """Extracts the video ID from a YouTube URL."""
+    match = re.search(r"(v=|\/)([A-Za-z0-9_-]{11})", url)
+    return match.group(2) if match else None
 
 def extract_transcript_details(youtube_video_url):
+    """Fetches transcript text for a given YouTube video URL using the safe static method."""
     video_id = extract_video_id(youtube_video_url)
     if not video_id:
         st.sidebar.warning("Please enter a valid YouTube URL.")
         return None
     try:
-        ytt_api = YouTubeTranscriptApi()
-        transcript_list = ytt_api.fetch(video_id)
-        transcript = " ".join([entry.text for entry in transcript_list])
+        # Use the static method (works reliably for deployed apps)
+        transcript_list = YouTubeTranscriptApi.get_transcript(video_id)
+        transcript = " ".join([entry['text'] for entry in transcript_list])
         return transcript
     except Exception as e:
         st.sidebar.error(f"Error fetching transcript: {e}")
         return None
 
 def generate_gemini_content(transcript_text, prompt):
+    """Uses Gemini to generate a summary for the transcript text."""
     model = genai.GenerativeModel("gemini-2.5-flash")
     response = model.generate_content(prompt + transcript_text)
     return response.text
 
-
+# Apply your custom dark theme styling (optional)
 st.markdown(
     """
     <style>
-    /* Page background */
     .reportview-container {
         background-color: #121212;
         color: #E0E0E0;
         font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     }
-    /* Sidebar background */
     .sidebar .sidebar-content {
         background-color: #0D47A1;
         color: #D1D1D1;
     }
-    /* Buttons */
     button {
         background-color: #0D47A1 !important;
         color: white !important;
@@ -76,7 +75,6 @@ st.markdown(
         color: white !important;
         cursor: pointer;
     }
-    /* Inputs */
     .stTextInput>div>input {
         border-radius: 8px;
         border: 1.5px solid #0D47A1;
@@ -90,19 +88,16 @@ st.markdown(
         border-color: #1976D2;
         box-shadow: 0 0 4px #1976D2;
     }
-    /* Headings */
     h1, h2 {
         color: #FFFCFB;
         font-weight: 700;
     }
-    /* Warnings and errors */
     .stWarning, .stError {
         background-color: #4A148C;
         color: #F3E5F5;
         padding: 10px;
         border-radius: 8px;
     }
-    /* Markdown links */
     a {
         color: #64B5F6;
         text-decoration: none;
@@ -115,10 +110,11 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-
+# Sidebar input
 st.sidebar.header("YouTube Transcript Summarizer")
 youtube_link = st.sidebar.text_input("Enter YouTube Video Link:")
 
+# Main section
 st.title("📄 YouTube Transcript to Detailed Notes Converter")
 
 if youtube_link:
@@ -135,7 +131,6 @@ if youtube_link:
 else:
     video_id = None
 
-
 col1, col2, col3 = st.columns([1, 2, 1])
 with col2:
     if st.button("Get Detailed Notes"):
@@ -150,7 +145,6 @@ with col2:
                     st.warning("Transcript could not be retrieved.")
         else:
             st.warning("Please enter a valid YouTube video link.")
-
 
 st.markdown(
     """
